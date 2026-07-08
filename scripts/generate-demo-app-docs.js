@@ -96,10 +96,10 @@ function fixRouterFragments(html) {
 }
 
 /** Generate component name from HTML file name
- * It preserves all except for _ and . characters that get added by typedoc
+ * It preserves all except for _, ., and - characters that get added by typedoc
  * The generated named is still weird, but it doesn't matter */
 function generateComponentName(fileName) {
-  const bareName = fileName.replace(/\.html$/, '').replace(/[._]/g, '');
+  const bareName = fileName.replace(/\.html$/, '').replace(/[._-]/g, '');
   return bareName.charAt(0).toUpperCase() + bareName.substr(1) + 'Component';
 }
 
