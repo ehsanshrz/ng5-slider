@@ -12,8 +12,7 @@
   ],
   "dependenciesToCopyFromMainPackageJson": [
     "detect-passive-events",
-    "rxjs",
-    "rxjs-compat"
+    "rxjs"
   ],
   "dependenciesToCopyAsPeerDependenciesFromMainPackageJson": [
     "@angular/core",
@@ -26,6 +25,9 @@
       "entryFile": "lib/public_api.ts"
     },
     "dest": "../../dist/ng5-slider",
-    "whitelistedNonPeerDependencies": []
+    "allowedNonPeerDependencies": [
+      "detect-passive-events",
+      "rxjs"
+    ]
   }
 }

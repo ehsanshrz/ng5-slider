@@ -12,43 +12,33 @@
 const path = require('path');
 const mkdirp = require('mkdirp');
 const fs = require('fs');
-const rimraf = require('rimraf');
+const { rimrafSync } = require('rimraf');
 const typedoc = require('typedoc');
 
 const utils = require('./utils.js');
 
-/** Run typedoc over library public API files to generate HTML files from customised typedoc theme
+/** Run typedoc over library public API files to generate HTML files from the default typedoc theme
  * The resulting files are not really useful on their own; they will be used later to generate demo app code
  */
-function generateTypedocDocs(typedocDocsDir) {
+async function generateTypedocDocs(typedocDocsDir) {
   const publicApiConfigFile = path.resolve(__dirname, '../src/ng5-slider/lib/public_api.json');
   const publicApiConfig = JSON.parse(fs.readFileSync(publicApiConfigFile, { encoding: 'utf8' }));
 
   const files = publicApiConfig.exports
     .map(exportDef => path.resolve(__dirname, `../src/ng5-slider/lib/${exportDef.file}.ts`));
 
-  const themeDir = path.resolve(__dirname, '../typedoc-theme');
-
-  // HACK: When Typedoc finda a README.md file, it uses it to generate content for the index page of documentation
-  // This is not very helpful, as it repeats the same stuff that's already shown on Github and NPM
-  // So instead, replace the README.md with our own file
-  const apiDocsReadmeFile = path.resolve(__dirname, '../typedoc-theme/README.md');
-  utils.copyReadmeMd(apiDocsReadmeFile);
-
-  const app = new typedoc.Application({
-    module: 'commonjs',
-    target: 'es6',
-    includeDeclarations: false,
-    experimentalDecorators: true,
+  const app = await typedoc.Application.bootstrap({
+    entryPoints: files,
     excludeExternals: true,
-    theme: themeDir
+    exclude: ['**/e2e/**', '**/*.spec.ts', '**/demo-app/**'],
+    skipErrorChecking: true,
+    out: typedocDocsDir
   });
 
-  app.generateDocs(files, typedocDocsDir);
-
-  // HACK: restore the README.md to original
-  const mainReadmeFile = path.resolve(__dirname, '../README.md');
-  utils.copyReadmeMd(mainReadmeFile);
+  const project = await app.convert();
+  if (project) {
+    await app.generateDocs(project, typedocDocsDir);
+  }
 }
 
 /** Convert typedoc HTML file into Angular component for use in demo app */
@@ -157,20 +147,27 @@ export class DocsModule { }
 
 
 const typedocDocsDir = path.resolve(__dirname, '../docs');
-rimraf.sync(typedocDocsDir);
-generateTypedocDocs(typedocDocsDir);
+rimrafSync(typedocDocsDir);
 
 const demoAppDocsModuleDir = path.resolve(__dirname, '../src/demo-app/app/docs');
-rimraf.sync(demoAppDocsModuleDir);
+rimrafSync(demoAppDocsModuleDir);
 
-const typedocHtmlFiles = utils.readdirRecursivelySync(typedocDocsDir)
-  .filter((file) => file.endsWith('.html'));
+(async () => {
+  await generateTypedocDocs(typedocDocsDir);
 
-const componentsMetadata = [];
-for (let typedocHtmlFile of typedocHtmlFiles) {
-  const relativeTypedocHtmlFile = path.relative(typedocDocsDir, typedocHtmlFile);
-  const componentMetadata = generateComponent(typedocHtmlFile, relativeTypedocHtmlFile, demoAppDocsModuleDir);
-  componentsMetadata.push(componentMetadata);
-}
+  const typedocHtmlFiles = fs.existsSync(typedocDocsDir)
+    ? utils.readdirRecursivelySync(typedocDocsDir).filter((file) => file.endsWith('.html'))
+    : [];
 
-generateModuleFile(componentsMetadata, demoAppDocsModuleDir);
+  const componentsMetadata = [];
+  for (let typedocHtmlFile of typedocHtmlFiles) {
+    const relativeTypedocHtmlFile = path.relative(typedocDocsDir, typedocHtmlFile);
+    const componentMetadata = generateComponent(typedocHtmlFile, relativeTypedocHtmlFile, demoAppDocsModuleDir);
+    componentsMetadata.push(componentMetadata);
+  }
+
+  generateModuleFile(componentsMetadata, demoAppDocsModuleDir);
+})().catch(err => {
+  console.error('Error generating demo app docs:', err);
+  process.exit(1);
+});

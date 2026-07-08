@@ -7,7 +7,7 @@
   },
   "compilerOptions": {
     "outDir": "../../out-tsc/demo-app",
-    "module": "es2015",
+    "module": "ES2022",
     "baseUrl": "",
     "types": [],
     "paths": {
@@ -19,3 +19,4 @@
     "**/*.spec.ts"
   ]
 }
+
